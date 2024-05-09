@@ -1,8 +1,8 @@
 CXX = g++
-CXXFLAGS = -pthread -std=c++11 -Wall -Wextra
+CXXFLAGS = -pthread -std=c++20 -Wall -Wextra
 
 # List your source files for server and client
-SERVER_SRCS = server/serverapp.cpp server/server.cpp
+SERVER_SRCS = server/manager.cpp server/serverapp.cpp server/server.cpp
 CLIENT_SRCS = client/clientapp.cpp client/client.cpp 
 
 # Generate the names of object files

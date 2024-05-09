@@ -3,17 +3,19 @@
 // Static variables
 std::atomic<bool> Server::stop_issued;
 std::map<int, pthread_t> Server::connection_handler_threads;
+int Server::_socket; 
 
 Server::Server()
 {
-    // Setup socket
+    manager = new Manager;
+    _socket = -1;
     setupConnection();
 }
 
 Server::~Server()
 {
-    // Close opened sockets
-    close(server_socket);
+    close(_socket);
+    delete manager;
 }
 
 void Server::listenConnections()
@@ -21,7 +23,7 @@ void Server::listenConnections()
     int client_socket = -1;
 
     // Set passive listen socket
-    if (listen(server_socket, 3) < 0)
+    if (listen(_socket, 3) < 0)
         throw std::runtime_error("Error setting socket as passive listener");
 
     // Spawn thread for listening to administrator commands
@@ -33,7 +35,7 @@ void Server::listenConnections()
     // Wait for incoming connections
     int sockaddr_size = sizeof(struct sockaddr_in);
     int* new_socket;
-    while(!stop_issued && (client_socket = accept(server_socket, (struct sockaddr*)&client_address, (socklen_t*)&sockaddr_size)))
+    while(!stop_issued && (client_socket = accept(_socket, (struct sockaddr*)&client_address, (socklen_t*)&sockaddr_size)))
     {
         std::cout << "New connection accepted from client " << client_socket << std::endl;
 
@@ -45,8 +47,7 @@ void Server::listenConnections()
         *new_socket = client_socket;
 
         // Spawn new thread for handling that client
-        if (pthread_create(&comm_thread, NULL, handleConnection, (void*)new_socket) < 0)
-        {
+        if (pthread_create(&comm_thread, NULL, handleConnection, (void*)new_socket) < 0) {
             // Close socket if no thread was created
             std::cerr << "Could not create thread for socket " << client_socket << std::endl;
             close(client_socket);
@@ -85,17 +86,20 @@ void *Server::handleCommands(void* arg)
 
 void *Server::handleConnection(void* arg)
 {
-    int socket = *(int*)arg;          // Client socket
-    int read_bytes = -1;              // Number of bytes read from the message
-    char client_message[PACKET_MAX];  // Buffer for client message, maximum of PACKET_MAX bytes
-    std::string message;              // User chat message
+    int socket = *(int*)arg;    // Client socket
+    int readBytes = -1;         // Number of bytes read from the message
+    char buffer[2048];   // Buffer for client message, maximum of BUFFER_SIZE bytes
 
-    while((read_bytes = recv(socket, client_message, PACKET_MAX, 0)) > 0) {
-        std::cout << std::string(client_message) << std::endl;
+    while((readBytes = recv(socket, buffer, BUFFER_SIZE, 0)) > 0) {
+        // Decode received data into a packet structure
+        packet* receivedPacket = (packet *)buffer;
+
+        // Debug
+        std::cout << "Id: " << receivedPacket->msgId << " Bytes: " << readBytes << " Payload: " << receivedPacket->_payload << std::endl;
 
         // Clear buffer
-        for (int i = 0 ; i < read_bytes; i++) {
-            client_message[i] = '\0';
+        for (int i = 0 ; i < readBytes; i++) {
+            buffer[i] = '\0';
         }
     }
 
@@ -112,7 +116,7 @@ void *Server::handleConnection(void* arg)
 void Server::setupConnection()
 {
     // Create socket
-    if ((server_socket = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+    if ((_socket = socket(AF_INET, SOCK_STREAM, 0)) < 0)
         throw std::runtime_error("Error during socket creation");
 
     // Prepare server socket address
@@ -121,11 +125,11 @@ void Server::setupConnection()
     server_address.sin_port = htons(SERVER_PORT);
 
     // Set socket options
-    int option = 1;
-    if (setsockopt(server_socket, SOL_SOCKET, SO_REUSEADDR, &option, sizeof(option)) < 0)
+    int reuse = 1;
+    if (setsockopt(_socket, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse)) == -1)
         throw std::runtime_error("Error setting socket options");
 
     // Bind socket
-    if (bind(server_socket, (struct sockaddr *)&server_address, sizeof(server_address)) < 0)
+    if (bind(_socket, (struct sockaddr *)&server_address, sizeof(server_address)) < 0)
         throw std::runtime_error("Error during socket bind");
 }

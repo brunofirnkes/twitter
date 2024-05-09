@@ -13,15 +13,17 @@
 #include <map>
 #include <atomic>
 
-#include "constants.h"
+#include "../utils/constants.h"
+#include "../utils/basesocket.h"
+#include "../utils/datatypes.h"
+#include "manager.h"
 
-class Server {
-    private:    
-    int server_socket;                      // Socket the server listens at for new incoming connections
-
-    struct sockaddr_in server_address;      // Server socket address
-    struct sockaddr_in client_address;      // Client socket address
-
+class Server : BaseSocket {
+    private:
+    Manager* manager;                       // Manager for handling clients messages
+    
+    static int _socket;                     // Socket the server listens at for new incoming connections
+    
     pthread_t command_handler_thread;       // Thread for handling server
 
     static std::atomic<bool> stop_issued;   // Atomic thread for stopping all threads

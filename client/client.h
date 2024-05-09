@@ -12,14 +12,18 @@
 #include <iostream>
 #include <atomic>
 #include <pthread.h>
-#include "constants.h"
 
-class Client {
+#include "../utils/constants.h"
+#include "../utils/basesocket.h"
+#include "../utils/datatypes.h"
+
+class Client : BaseSocket{
     private:
+    static int _socket;                     // Socket the server listens at for new incoming connections
+
     static std::atomic<bool> stop_issued;   // Atomic flag for stopping all threads
     std::string server_ip;                  // IP of the remote server
     int server_port;                        // Port the remote server listens to
-    static int  server_socket;              // Socket for remote server communication
     struct sockaddr_in server_address;      // Server socket address
     static pthread_t input_handler_thread;  // Thread to listen for new incoming server messages
 
@@ -33,7 +37,7 @@ class Client {
      * @param message Message to be sent to the chatroom
      * @return Number of bytes sent to remote server
      */
-    static int sendMessage(std::string message);
+    static int sendMessagePacket(int msgId, std::string message);
 
     public:
     /**
@@ -51,8 +55,13 @@ class Client {
 
     /**
      * Setup connection to remote server
-     */
+    */
     void setupConnection();
+
+    /**
+     * Loop to recv messages from remote server
+    */
+    void recvMessages();
 };
 
 #endif

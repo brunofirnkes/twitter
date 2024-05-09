@@ -9,6 +9,9 @@ int main()
 
         // Setup a connection to the server
         client.setupConnection();
+
+        // Start receiving for the server
+        client.recvMessages();
     }
     catch(const std::exception& e) {
         std::cerr << e.what() << std::endl;
