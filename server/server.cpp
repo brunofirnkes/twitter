@@ -8,6 +8,7 @@ int Server::_socket;
 Server::Server()
 {
     manager = new Manager;
+
     _socket = -1;
     setupConnection();
 }
@@ -43,14 +44,17 @@ void Server::listenConnections()
         pthread_t comm_thread;
 
         // Get reference to client socket
-        new_socket = (int*)malloc(sizeof(int));
-        *new_socket = client_socket;
+        int* new_socket = new int(client_socket);
 
+        // Create argument pair
+        std::pair<Server*, int>* args = new std::pair<Server*, int>(this, *new_socket);
         // Spawn new thread for handling that client
-        if (pthread_create(&comm_thread, NULL, handleConnection, (void*)new_socket) < 0) {
+        if (pthread_create(&comm_thread, NULL, handleConnection, (void*)args) < 0) {
             // Close socket if no thread was created
             std::cerr << "Could not create thread for socket " << client_socket << std::endl;
             close(client_socket);
+            delete new_socket;
+            delete args;   
         }
 
         // Add thread to list of connection handlers
@@ -68,7 +72,7 @@ void Server::listenConnections()
     }
 }
 
-void *Server::handleCommands(void* arg)
+void* Server::handleCommands(void* arg)
 {
     // Get administrator commands
     std::string command;
@@ -84,32 +88,47 @@ void *Server::handleCommands(void* arg)
     pthread_exit(NULL);
 }
 
-void *Server::handleConnection(void* arg)
+void* Server::handleConnection(void* arg)
 {
-    int socket = *(int*)arg;    // Client socket
-    int readBytes = -1;         // Number of bytes read from the message
-    char buffer[2048];   // Buffer for client message, maximum of BUFFER_SIZE bytes
+    // Cast the argument back to the appropriate type
+    std::pair<Server*, int>* args = reinterpret_cast<std::pair<Server*, int>*>(arg);
+    Server* _server = args->first;
+    int socket = args->second;
 
-    while((readBytes = recv(socket, buffer, BUFFER_SIZE, 0)) > 0) {
-        // Decode received data into a packet structure
-        packet* receivedPacket = (packet *)buffer;
+    int read_bytes = -1;      // Number of bytes read from the message
+    char buffer[BUFFER_SIZE]; // Buffer for client message
+    std::string response;
 
-        // Debug
-        std::cout << "Id: " << receivedPacket->msgId << " Bytes: " << readBytes << " Payload: " << receivedPacket->_payload << std::endl;
+    while((read_bytes = recv(socket, buffer, BUFFER_SIZE, 0)) > 0) {
+        // Decode received data into a _packet structure
+        _packet* receivedPacket = (_packet *)buffer;
+
+        switch ((Command)receivedPacket->msg_id) {
+        case COMM_HELP:        response = _server->manager->commHelp();       break;
+        case COMM_CREATE_USER: response = _server->manager->commCreateUser(); break;
+        default:
+            std::cerr << "Unknown command: " << receivedPacket->msg_id << std::endl;
+            response = "Unknown command";
+        }
+
+        // Send response to client
+        if (sendPacket(socket, PKT_DATA, response.c_str(), response.size()) < 0)
+            std::cerr << "Error sending packet with response: " << response << std::endl;
 
         // Clear buffer
-        for (int i = 0 ; i < readBytes; i++) {
+        for (int i = 0 ; i < read_bytes; i++)
             buffer[i] = '\0';
-        }
     }
-
-    // Free received argument
-    free(arg);
-
     // Remove socket from the threads list
     Server::connection_handler_threads.erase(socket);
 
-    // Exit
+    // Close client socket
+    close(socket);
+
+    // Free received argument
+    delete &socket;
+    delete args;
+
     pthread_exit(NULL);
 }
 

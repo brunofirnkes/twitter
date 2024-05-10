@@ -16,6 +16,7 @@
 #include "../utils/constants.h"
 #include "../utils/basesocket.h"
 #include "../utils/datatypes.h"
+#include "../utils/genericutils.h"
 
 class Client : BaseSocket{
     private:
@@ -33,24 +34,24 @@ class Client : BaseSocket{
     static void *handleUserInput(void* arg);
 
     /**
-     * Send message to server
-     * @param message Message to be sent to the chatroom
-     * @return Number of bytes sent to remote server
-     */
-    static int sendMessagePacket(int msgId, std::string message);
+     * Return command ID from client's input. Remove the command from the content
+     * @param input
+     * @return command id 
+    */
+    static Command getCommand(std::string& input);
 
     public:
     /**
      * Class constructor
      * @param server_ip IP Address for the remote server, formatted in IPv4 (x.x.x.x)
      * @param server_port Port the remote server is listening at
-     */
+    */
     Client(std::string server_ip, int server_port);
 
     /**
      * Class destructor
      * Closes communication socket with the remote server if one has been opened
-     */
+    */
     ~Client();
 
     /**

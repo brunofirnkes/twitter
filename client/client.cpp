@@ -40,22 +40,26 @@ void Client::setupConnection()
     pthread_create(&input_handler_thread, NULL, handleUserInput, NULL);
 };
 
-void *Client::handleUserInput(void* arg)
-{
+void* Client::handleUserInput(void* arg) {
     std::string message;
 
-    // Read messages from client's terminal
     while(std::getline(std::cin, message)) {
         try {
-            const char* payload = message.c_str();
-            
-            // Send packet to remote server
-            sendPacket(_socket, CREATE_USER, payload, strlen(payload));
+            Command command = getCommand(message);
+
+            // Check if command is valid before sending
+            if (command != COMM_UNKNOWN) {
+                const char* payload = message.c_str();
+                sendPacket(_socket, (int)command, payload, strlen(payload));
+            } else {
+                std::cerr << "Unknown command: " << message << std::endl;
+            }
         }
-        catch(const std::runtime_error& e) {
-            std::cerr << e.what() << std::endl;
+        catch(const std::exception& e) {
+            std::cerr << "Error: " << e.what() << std::endl;
         }
     }
+
     // Signal thread to stop
     stop_issued = true;
 
@@ -64,23 +68,45 @@ void *Client::handleUserInput(void* arg)
 
     // End with no return value
     pthread_exit(NULL);
-};
+}
 
 void Client::recvMessages() {
     int readBytes = -1;
-    int payloadBytes = 0;
     char buffer[BUFFER_SIZE];
-    packet* receivedPacket{nullptr};
+    _packet* receivedPacket{nullptr};
 
     while(!stop_issued && (readBytes = recv(_socket, buffer, BUFFER_SIZE, 0)) > 0) {
         // Decode message into packet format
-        receivedPacket = (packet*)buffer;
+        receivedPacket = (_packet*)buffer;
 
-        std::cout << "Id: " << receivedPacket->msgId << " Bytes: " << readBytes << " Payload: " << receivedPacket->_payload << std::endl;
+        std::cout << receivedPacket->_payload << std::endl;
 
         // Clear buffer
         for (int i = 0 ; i < readBytes; i++) {
             buffer[i] = '\0';
         }
     } 
+}
+
+Command Client::getCommand(std::string& input) {
+    // Command for sanitizing input
+    std::string comm{""};
+
+    // Regex for matching commands
+    std::regex helpRegex("^\\s*help\\s*",             std::regex_constants::icase);
+    std::regex createUserRegex("^\\s*createuser\\s*", std::regex_constants::icase);
+
+    // Match the input against the Regex
+    if (std::regex_search(input, helpRegex)) {
+        comm = "help";
+        input = utils::trim(input.substr(input.find(comm) + comm.size()));
+        return COMM_HELP;
+    }
+    else if (std::regex_search(input, createUserRegex)){
+        comm = "createuser";
+        input = utils::trim(input.substr(input.find(comm) + comm.size()));
+        return COMM_CREATE_USER;
+    }
+
+    return COMM_UNKNOWN;
 }

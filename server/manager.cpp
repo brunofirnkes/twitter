@@ -1,12 +1,13 @@
 #include "manager.h"
 
 // Static variables
-std::queue<message*> Manager::queue_msg; 
+std::queue<_message*> Manager::queue_msg; 
 Semaphore Manager::semaphore_msg;  
 std::atomic<bool> Manager::stop_issued;
 
 Manager::Manager(){
     stop_issued = false;
+
     // Spawn new thread for handling new messages
     if (pthread_create(&handler_thread, NULL, messageHandler, NULL) < 0) {
         std::cerr << "Could not create thread for handling messages " << std::endl;
@@ -24,14 +25,14 @@ void Manager::Stop(){
     stop_issued = true;
 }
 
-void Manager::safePostMessage(message* msg){
+void Manager::safePostMessage(_message* msg){
     semaphore_msg.acquire();
     queue_msg.push(msg);
     semaphore_msg.release(); 
 }
 
-message* Manager::safeGetMessage(){
-    message* msg;
+_message* Manager::safeGetMessage(){
+    _message* msg;
 
     semaphore_msg.acquire();
     if (!queue_msg.empty()){
@@ -46,10 +47,24 @@ message* Manager::safeGetMessage(){
 }
 
 void* Manager::messageHandler(void* arg){
-    message* msg;
+    _message* msg;
 
     // Thread loop. Get messages from queue and process it
     while (!stop_issued && (msg = safeGetMessage())){
-        std::cout << msg->msgId << std::endl;;
+        std::cout << msg->msg_id << std::endl;
     }
+}
+
+std::string Manager::commHelp(){
+    std::string availableCommands{"Available commands:"};
+    // List commands from Command enum
+    for (int _comm = COMM_HELP; _comm != LAST; _comm++ ){
+        Command comm = static_cast<Command>(_comm);
+        availableCommands = availableCommands + " " + utils::commToString(comm);
+    }
+    return availableCommands;
+}
+
+std::string Manager::commCreateUser(){
+
 }

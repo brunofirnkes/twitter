@@ -5,50 +5,59 @@
 #include <iostream>
 #include <pthread.h>
 #include <atomic>
+#include <map>
 
 #include "../utils/semaphore.h"
 #include "../utils/datatypes.h"
+#include "../utils/constants.h"
+#include "../utils/genericutils.h"
 
 class Manager {
     private:
-    static std::atomic<bool> stop_issued;  // Stop issued to stop the thread
+    static std::atomic<bool> stop_issued;   // Stop issued to stop the thread
 
-    static std::queue<message*> queue_msg; // Messages queue
-    static Semaphore semaphore_msg;        // Messages semaphore
-    pthread_t handler_thread;       // Thread to handle messages
+    static std::queue<_message*> queue_msg; // Messages queue
+    static Semaphore semaphore_msg;         // Messages semaphore
+    pthread_t handler_thread;               // Thread to handle messages 
 
-    /*
-    * Safely get a message for processing
-    * @param 
+    /**
+     * Safely get a message for processing
+     * @return _message*
     */
-    static message* safeGetMessage();
+    static _message* safeGetMessage();
 
-    /*
-    * Thread message handler
+    /**
+     * Thread message handler
     */
     static void* messageHandler(void* arg);
 
     public:
-    /*
-    * Class constructor
+    /**
+     * Class constructor
     */
     Manager();
 
-    /*
-    * Class destructor
+    /**
+     * Class destructor
     */
     ~Manager();
 
-    /*
-    * Send a signal to stop the thread
+    /**
+     * Send a signal to stop the thread
     */
     void Stop();
 
-    /*
-    * Safely post a message for processing
-    * @param msg to be processed
+    /**
+     * Safely post a message for processing
+     * @param msg to be processed
     */
-    void safePostMessage(message* msg);
+    void safePostMessage(_message* msg);
+
+    /**
+     * Client commands
+    */
+    std::string commHelp();
+    std::string commCreateUser();
 };
 
 #endif

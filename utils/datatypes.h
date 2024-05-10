@@ -5,16 +5,16 @@
 
 // Packet that is sent between server and client
 typedef struct _packet {
-    uint16_t msgId;         // Message ID
+    uint8_t msg_id;          // Message ID
     uint16_t sqn;           // Sequence number
     uint16_t length;        // Message lenght
     uint64_t timestamp;     // Message timestamp
     const char _payload[];  // Message payload
-} packet;
+} _packet;
 
 typedef struct _message {
-    int msgId;  // Message ID
+    int msg_id;  // Message ID
     void* argv; // Data
-} message;
+} _message;
 
 #endif
